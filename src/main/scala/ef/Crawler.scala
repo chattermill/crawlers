@@ -52,7 +52,7 @@ object Crawler {
   }
 
   def loadCategory(cat: Category, page: Int = 1): Seq[Shop] = {
-    println(s"Loading page $page of $cat")
+    println(s"Loading page $page of category ${cat.caption}")
 
     def shopName(text: String) = text.split('.').tail.mkString(".").trim
 
