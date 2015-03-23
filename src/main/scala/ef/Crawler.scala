@@ -2,10 +2,13 @@ package ef
 
 import java.io.{FileWriter, File}
 import java.net.URL
-import org.jsoup.nodes.Element
+import org.jsoup.nodes.{Document, Element}
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import org.jsoup.Jsoup
+
+import scala.util.{Failure, Success, Try}
 
 object Crawler {
   val urlCategories = "https://uk.trustpilot.com/categories"
@@ -25,14 +28,25 @@ object Crawler {
   , reviews: Seq[Review]
   )
 
+  @tailrec
+  def request(url: String): Document = {
+    Try(Jsoup.parse(new URL(url), 5000)) match {
+      case Success(document) => document
+      case Failure(fail) =>
+        println(s"Requesting $url failed: $fail")
+        Thread.sleep(1000)
+        request(url)
+    }
+  }
+
   def loadCategories(): Seq[Category] = {
-    val document = Jsoup.parse(new URL(urlCategories), 5000)
+    val document = request(urlCategories)
     val categories = document.select("div.menuleft").select("a").asScala
     categories.map(n => Category(n.text(), n.absUrl("href"))).toSeq
   }
 
   def loadSubCategories(cat: Category): Seq[Category] = {
-    val document = Jsoup.parse(new URL(cat.url), 5000)
+    val document = request(cat.url)
     val subCategories = document.select("li.selected").select("ul").select("a").asScala
     subCategories.map(n => Category(n.select("span").text(), n.absUrl("href"))).toSeq
   }
@@ -42,7 +56,7 @@ object Crawler {
 
     def shopName(text: String) = text.split('.').tail.mkString(".").trim
 
-    val document = Jsoup.parse(new URL(s"${cat.url}?page=$page"), 5000)
+    val document = request(s"${cat.url}?page=$page")
 
     val results = document
       .select("div.ranking")
@@ -68,7 +82,7 @@ object Crawler {
 
   def loadReviews(shop: Shop, page: Int = 1): Seq[Review] = {
     println(s"Loading reviews for ${shop.caption}, page $page")
-    val document = Jsoup.parse(new URL(s"${shop.url}?page=$page"), 5000)
+    val document = request(s"${shop.url}?page=$page")
 
     val reviews = document.select("div.review").select("div.review-info").asScala
     val current = reviews.flatMap { review =>
