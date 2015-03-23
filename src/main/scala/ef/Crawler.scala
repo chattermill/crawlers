@@ -40,7 +40,7 @@ object Crawler {
   def loadCategory(cat: Category, page: Int = 1): Seq[Shop] = {
     println(s"Loading page $page of $cat")
 
-    def shopName(text: String) = text.split('.').last.trim
+    def shopName(text: String) = text.split('.').tail.mkString(".").trim
 
     val document = Jsoup.parse(new URL(s"${cat.url}?page=$page"), 5000)
 
@@ -71,11 +71,15 @@ object Crawler {
     val document = Jsoup.parse(new URL(s"${shop.url}?page=$page"), 5000)
 
     val reviews = document.select("div.review").select("div.review-info").asScala
-    val current = reviews.map(review => Review(
-      review.select("h3.review-title").text()
+    val current = reviews.flatMap { review =>
+      val r = review.select("div.star-rating").first()
+      if (r == null) None // It will be null if the review was reported
+      else Some(Review(
+        review.select("h3.review-title").text()
       , review.select("div.review-body").text() // TODO Should not strip paragraphs
-      , rating(review.select("div.star-rating").first())
-    )).toSeq
+      , rating(r)
+      ))
+    }.toSeq
     val nextPage = document.select("div.AjaxPagerLinkWrapper").first() != null
 
     if (nextPage) current ++ loadReviews(shop, page + 1)
