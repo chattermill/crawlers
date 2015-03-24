@@ -16,6 +16,11 @@ object Crawler {
   case class Category(caption: String, url: String)
   case class Shop(caption: String, url: String)
   case class Review(title: String, body: String, rating: Int)
+  case class Reviews(
+    average: Double
+  , count: Int
+  , reviews: Seq[Review]
+  )
 
   case class CategoryTree(
     category: Category
@@ -25,7 +30,7 @@ object Crawler {
   case class ShopReviews(
     category: Category
   , shop: Shop
-  , reviews: Seq[Review]
+  , reviews: Reviews
   )
 
   @tailrec
@@ -80,24 +85,39 @@ object Crawler {
     else 0
   }
 
-  def loadReviews(shop: Shop, page: Int = 1): Seq[Review] = {
-    println(s"Loading reviews for ${shop.caption}, page $page")
-    val document = request(s"${shop.url}?page=$page")
+  def loadReviews(shop: Shop): Reviews = {
+    def loadPage(shop: Shop, page: Int): (Document, Seq[Review]) = {
+      println(s"Loading reviews for ${shop.caption}, page $page")
+      val document = request(s"${shop.url}?page=$page")
 
-    val reviews = document.select("div.review").select("div.review-info").asScala
-    val current = reviews.flatMap { review =>
-      val r = review.select("div.star-rating").first()
-      if (r == null) None // It will be null if the review was reported
-      else Some(Review(
-        review.select("h3.review-title").text()
-      , review.select("div.review-body").text() // TODO Should not strip paragraphs
-      , rating(r)
-      ))
-    }.toSeq
-    val nextPage = document.select("div.AjaxPagerLinkWrapper").first() != null
+      val reviews = document.select("div.review").select("div.review-info").asScala
+      val current = reviews.flatMap { review =>
+        val r = review.select("div.star-rating").first()
+        if (r == null) None // It will be null if the review was reported
+        else Some(Review(
+          review.select("h3.review-title").text()
+          , review.select("div.review-body").text() // TODO Should not strip paragraphs
+          , rating(r)
+        ))
+      }.toSeq
 
-    if (nextPage) current ++ loadReviews(shop, page + 1)
-    else current
+      (document, current)
+    }
+
+    val pages = Stream.from(1)
+      .map(page => loadPage(shop, page))
+      .takeWhile
+    { case (d, _) =>
+      d.select("div.AjaxPagerLinkWrapper").first() != null
+    }.toList
+
+    val (document, _) = pages.head
+
+    Reviews(
+      average = document.select("span.average").text().toDouble
+    , count = document.select("span.ratingCount").text().toInt
+    , reviews = pages.flatMap(_._2)
+    )
   }
 
   def save(path: String, s: String): Unit = {
