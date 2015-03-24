@@ -2,7 +2,7 @@ package ef
 
 import java.io.{FileWriter, File}
 import java.net.URL
-import org.jsoup.nodes.{Document, Element}
+import org.jsoup.nodes.{TextNode, Document, Element}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -66,6 +66,16 @@ object Crawler {
     }
   }
 
+  // See also http://stackoverflow.com/questions/20075991/how-to-keep-line-breaks-when-using-jsoup-parse
+  def getText(elem: Element): String = {
+    elem.childNodes().asScala.map {
+      case tn: TextNode => tn.text()
+      case e: Element =>
+        val nl = if (e.tag().getName.equalsIgnoreCase("br")) "\n" else ""
+        nl + getText(e)
+    }.mkString
+  }
+
   def loadCategories(): Seq[Category] = {
     val document = request(urlCategories)
     val categories = document.select("div.menuleft a").asScala
@@ -111,7 +121,7 @@ object Crawler {
       if (reply.first() == null) None
       else Some(Reply(
         dateTime = reply.select("time.ndate").attr("datetime")
-      , comment  = reply.select("div.comment").text() // TODO Should not strip paragraphs
+      , comment  = getText(reply.select("div.comment").first())
       ))
     }
 
@@ -125,7 +135,7 @@ object Crawler {
         if (r == null) None // It will be null if the review was reported
         else Some(Review(
           title    = review.select("h3.review-title").text()
-        , body     = review.select("div.review-body").text() // TODO Should not strip paragraphs
+        , body     = getText(review.select("div.review-body").first())
         , rating   = rating(r)
         , dateTime = review.select("time.ndate").attr("datetime")
         , user     = review.select("div.user-review-name span").text()
