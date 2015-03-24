@@ -8,6 +8,7 @@ import codes.reactive.scalatime.format.DateTimeFormatter
 object Analysis {
   import Model._
 
+  val Threshold = 500  // Minimum number of reviews per shop
   val formatter = DateTimeFormatter.Iso.OffsetDateTime
 
   // From http://stackoverflow.com/questions/10160280/how-to-implement-generic-average-function-in-scala
@@ -30,6 +31,9 @@ object Analysis {
 
     val categories = read[Seq[CategoryTree]](load(s"data/_categories.json"))
     val shops      = shopFiles.map(file => read[ShopReviews](load(file)))
+      .filter(_.reviews.reviews.size >= Threshold)
+
+    println(s"Considering ${shops.size} shops (with $Threshold+ reviews)")
 
     categories.foreach { category =>
       println(s"Category: ${category.category.caption}")
