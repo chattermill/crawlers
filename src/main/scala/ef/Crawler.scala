@@ -11,49 +11,9 @@ import org.jsoup.Jsoup
 import scala.util.{Failure, Success, Try}
 
 object Crawler {
+  import Model._
+
   val urlCategories = "https://uk.trustpilot.com/categories"
-
-  case class Category(
-    caption: String
-  , url    : String
-  )
-
-  case class Shop(
-    caption: String
-  , url    : String
-  )
-
-  case class Review(
-    title   : String
-  , body    : String
-  , rating  : Int
-  , dateTime: String
-  , user    : String  // Author name
-  , userId  : Int
-  , reply   : Option[Reply]
-  )
-
-  case class Reply(
-    dateTime: String
-  , comment : String
-  )
-
-  case class Reviews(
-    average: Double
-  , count  : Int
-  , reviews: Seq[Review]
-  )
-
-  case class CategoryTree(
-    category     : Category
-  , subCategories: Seq[Category]
-  )
-
-  case class ShopReviews(
-    category: Category
-  , shop    : Shop
-  , reviews : Reviews
-  )
 
   @tailrec
   def request(url: String): Document = {
@@ -79,7 +39,7 @@ object Crawler {
   def loadCategories(): Seq[Category] = {
     val document = request(urlCategories)
     val categories = document.select("div.menuleft a").asScala
-    categories.map(n => Category(n.text(), n.absUrl("href"))).toSeq
+    categories.tail.map(n => Category(n.text(), n.absUrl("href"))).toSeq
   }
 
   def loadSubCategories(cat: Category): Seq[Category] = {
