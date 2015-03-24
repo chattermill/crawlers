@@ -24,9 +24,11 @@ object Analysis {
       println(s"Category: ${category.category.caption}")
 
       val categoryReviews = category.subCategories.map { subCategory =>
-        val reviewsCount = shops.filter(_.category == subCategory)
-          .map(_.reviews.count)
-          .sum
+        val reviewsCount = shops.filter { shop =>
+          shop.reviews.categories.contains(category.category) ||
+          shop.reviews.categories.contains(subCategory)
+        }.map(_.reviews.count)
+         .sum
 
         println(s"  Sub-category: ${subCategory.caption}")
         println(s"    Reviews: $reviewsCount")

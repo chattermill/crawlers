@@ -27,9 +27,10 @@ object Model {
   )
 
   case class Reviews(
-    average: Double
-  , count  : Int
-  , reviews: Seq[Review]
+    average   : Double
+  , count     : Int
+  , reviews   : Seq[Review]
+  , categories: Seq[Category]
   )
 
   case class CategoryTree(
@@ -38,8 +39,7 @@ object Model {
   )
 
   case class ShopReviews(
-    category: Category
-  , shop    : Shop
-  , reviews : Reviews
+    shop   : Shop
+  , reviews: Reviews
   )
 }

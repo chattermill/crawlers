@@ -107,6 +107,14 @@ object Crawler {
       (document, current)
     }
 
+    def parseCategories(document: Document): Seq[Category] =
+      document
+        .select("div.company-info-wrapper a")
+        .asScala
+        .filter(_.attr("href").startsWith("/categories"))
+        .filter(!_.hasAttr("hidden"))  // Sometimes the top-level category is included, but hidden
+        .map(element => Model.Category(element.text(), element.absUrl("href")))
+
     val pages = Stream.from(1)
       .map(page => loadPage(shop, page))
       .zipWithIndex
@@ -118,9 +126,10 @@ object Crawler {
     val ((document, _), _) = pages.head
 
     Reviews(
-      average = document.select("span.average").text().toDouble
-    , count   = document.select("span.ratingCount").text().toInt
-    , reviews = pages.flatMap { case ((_, r), _) => r }
+      average    = document.select("span.average").text().toDouble
+    , count      = document.select("span.ratingCount").text().toInt
+    , reviews    = pages.flatMap { case ((_, r), _) => r }
+    , categories = parseCategories(document)
     )
   }
 
@@ -147,7 +156,7 @@ object Crawler {
         val id = shopId(shop.url)
         val path = s"data/$id.json"
         if (new File(path).exists()) println(s"$id exists")
-        else save(path, write(ShopReviews(category, shop, loadReviews(shop))))
+        else save(path, write(ShopReviews(shop, loadReviews(shop))))
       }
     }
   }
