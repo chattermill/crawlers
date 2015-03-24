@@ -139,17 +139,18 @@ object Crawler {
 
     val pages = Stream.from(1)
       .map(page => loadPage(shop, page))
+      .zipWithIndex
       .takeWhile
-    { case (d, _) =>
-      d.select("div.AjaxPagerLinkWrapper").first() != null
+    { case (_, 0)      => true // Some shops consist of only one page
+      case ((d, _), _) => d.select("div.AjaxPagerLinkWrapper").first() != null
     }
 
-    val (document, _) = pages.head
+    val ((document, _), _) = pages.head
 
     Reviews(
       average = document.select("span.average").text().toDouble
     , count   = document.select("span.ratingCount").text().toInt
-    , reviews = pages.flatMap(_._2)
+    , reviews = pages.flatMap { case ((_, r), _) => r }
     )
   }
 
