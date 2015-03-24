@@ -13,24 +13,46 @@ import scala.util.{Failure, Success, Try}
 object Crawler {
   val urlCategories = "https://uk.trustpilot.com/categories"
 
-  case class Category(caption: String, url: String)
-  case class Shop(caption: String, url: String)
-  case class Review(title: String, body: String, rating: Int)
+  case class Category(
+    caption: String
+  , url    : String
+  )
+
+  case class Shop(
+    caption: String
+  , url    : String
+  )
+
+  case class Review(
+    title   : String
+  , body    : String
+  , rating  : Int
+  , dateTime: String
+  , user    : String  // Author name
+  , userId  : Int
+  , reply   : Option[Reply]
+  )
+
+  case class Reply(
+    dateTime: String
+  , comment : String
+  )
+
   case class Reviews(
     average: Double
-  , count: Int
+  , count  : Int
   , reviews: Seq[Review]
   )
 
   case class CategoryTree(
-    category: Category
+    category     : Category
   , subCategories: Seq[Category]
   )
 
   case class ShopReviews(
     category: Category
-  , shop: Shop
-  , reviews: Reviews
+  , shop    : Shop
+  , reviews : Reviews
   )
 
   @tailrec
@@ -46,13 +68,13 @@ object Crawler {
 
   def loadCategories(): Seq[Category] = {
     val document = request(urlCategories)
-    val categories = document.select("div.menuleft").select("a").asScala
+    val categories = document.select("div.menuleft a").asScala
     categories.map(n => Category(n.text(), n.absUrl("href"))).toSeq
   }
 
   def loadSubCategories(cat: Category): Seq[Category] = {
     val document = request(cat.url)
-    val subCategories = document.select("li.selected").select("ul").select("a").asScala
+    val subCategories = document.select("li.selected ul a").asScala
     subCategories.map(n => Category(n.select("span").text(), n.absUrl("href"))).toSeq
   }
 
@@ -64,9 +86,7 @@ object Crawler {
     val document = request(s"${cat.url}?page=$page")
 
     val results = document
-      .select("div.ranking")
-      .select("h3")
-      .select("a")
+      .select("div.ranking h3 a")
       .asScala
 
     val current  = results.map(result => Shop(shopName(result.text()), result.absUrl("href")))
@@ -86,18 +106,31 @@ object Crawler {
   }
 
   def loadReviews(shop: Shop): Reviews = {
+    def loadReply(review: Element): Option[Reply] = {
+      val reply = review.select("company-reply")
+      if (reply.first() == null) None
+      else Some(Reply(
+        dateTime = reply.select("time.ndate").attr("datetime")
+      , comment  = reply.select("div.comment").text() // TODO Should not strip paragraphs
+      ))
+    }
+
     def loadPage(shop: Shop, page: Int): (Document, Seq[Review]) = {
       println(s"Loading reviews for ${shop.caption}, page $page")
       val document = request(s"${shop.url}?page=$page")
 
-      val reviews = document.select("div.review").select("div.review-info").asScala
+      val reviews = document.select("div.review").asScala
       val current = reviews.flatMap { review =>
         val r = review.select("div.star-rating").first()
         if (r == null) None // It will be null if the review was reported
         else Some(Review(
-          review.select("h3.review-title").text()
-          , review.select("div.review-body").text() // TODO Should not strip paragraphs
-          , rating(r)
+          title    = review.select("h3.review-title").text()
+        , body     = review.select("div.review-body").text() // TODO Should not strip paragraphs
+        , rating   = rating(r)
+        , dateTime = review.select("time.ndate").attr("datetime")
+        , user     = review.select("div.user-review-name span").text()
+        , userId   = review.select("div.user-review-name a").attr("href").split('/').last.toInt
+        , reply    = loadReply(review)
         ))
       }.toSeq
 
@@ -115,7 +148,7 @@ object Crawler {
 
     Reviews(
       average = document.select("span.average").text().toDouble
-    , count = document.select("span.ratingCount").text().toInt
+    , count   = document.select("span.ratingCount").text().toInt
     , reviews = pages.flatMap(_._2)
     )
   }
