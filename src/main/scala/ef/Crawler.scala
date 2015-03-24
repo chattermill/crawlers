@@ -142,7 +142,7 @@ object Crawler {
       .takeWhile
     { case (d, _) =>
       d.select("div.AjaxPagerLinkWrapper").first() != null
-    }.toList
+    }
 
     val (document, _) = pages.head
 
