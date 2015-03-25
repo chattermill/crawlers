@@ -1,14 +1,9 @@
 package ef
 
-import java.io.File
-
 import codes.reactive.scalatime.LocalDateTime
 import codes.reactive.scalatime.format.DateTimeFormatter
 
 object Analysis {
-  import Model._
-
-  val Threshold = 500  // Minimum number of reviews per shop
   val formatter = DateTimeFormatter.Iso.OffsetDateTime
 
   // From http://stackoverflow.com/questions/10160280/how-to-implement-generic-average-function-in-scala
@@ -17,23 +12,11 @@ object Analysis {
     else Some(num.toDouble(ts.sum) / ts.size)
   }
 
-  def load(path: String): String =
-    scala.io.Source.fromFile(new File(path)).mkString
-
-  def shopFiles: Seq[String] = new File("data/")
-    .listFiles()
-    .filter(_.getName.endsWith(".json"))
-    .filter(_.getName != "_categories.json")
-    .map(_.getPath)
-
   def main(args: Array[String]) {
-    import upickle._
+    val categories = Database.loadCategories()
+    val shops      = Database.loadShops()
 
-    val categories = read[Seq[CategoryTree]](load(s"data/_categories.json"))
-    val shops      = shopFiles.map(file => read[ShopReviews](load(file)))
-      .filter(_.reviews.reviews.size >= Threshold)
-
-    println(s"Considering ${shops.size} shops (with $Threshold+ reviews)")
+    println(s"Considering ${shops.size} shops (with ${Database.Threshold}+ reviews)")
 
     categories.foreach { category =>
       println(s"Category: ${category.category.caption}")

@@ -11,3 +11,5 @@ libraryDependencies += "org.jsoup" % "jsoup" % "1.7.3"
 libraryDependencies += "com.lihaoyi" %% "upickle" % "0.2.8"
 
 libraryDependencies += "codes.reactive" %% "scala-time" % "0.3.0-SNAPSHOT"
+
+libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.2.1"
