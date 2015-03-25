@@ -27,8 +27,8 @@ object Model {
   )
 
   case class Reviews(
-    average   : Double
-  , count     : Int
+    average   : Double  // TODO Remove
+  , count     : Int     // TODO Remove
   , reviews   : Seq[Review]
   , categories: Seq[Category]
   )

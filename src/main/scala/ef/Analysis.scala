@@ -12,6 +12,10 @@ object Analysis {
     else Some(num.toDouble(ts.sum) / ts.size)
   }
 
+  def isPositive(review: Model.Review): Boolean = review.rating > 3
+  def isNeutral (review: Model.Review): Boolean = review.rating == 3
+  def isNegative(review: Model.Review): Boolean = review.rating < 3
+
   def main(args: Array[String]) {
     val categories = Database.loadCategories()
     val shops      = Database.loadShops()
@@ -27,7 +31,7 @@ object Analysis {
           shop.reviews.categories.contains(subCategory)
         }
 
-        val reviewsCount = matchingShops.map(_.reviews.count).sum
+        val reviewsCount = matchingShops.map(_.reviews.reviews.size).sum
 
         val reviewsPerMonth = average(matchingShops.map { shop =>
           val perMonth = shop.reviews.reviews.groupBy { review =>
@@ -38,14 +42,24 @@ object Analysis {
           shop.reviews.reviews.size / perMonth.size
         }).getOrElse(0)
 
+        val positiveCount = matchingShops.map(_.reviews.reviews.count(isPositive)).sum
+        val neutralCount  = matchingShops.map(_.reviews.reviews.count(isNeutral)).sum
+        val negativeCount = matchingShops.map(_.reviews.reviews.count(isNegative)).sum
+        val avgRating     = average(matchingShops.flatMap(_.reviews.reviews).map(_.rating)).getOrElse(0)
+
         println(s"  Sub-category: ${subCategory.caption}")
-        println(s"    Reviews: $reviewsCount")
-        println(s"    Average # per shop in a month: $reviewsPerMonth")
+        println(s"    Reviews:")
+        println(s"      # total             : $reviewsCount")
+        println(s"      # positive [4, 5]   : $positiveCount")
+        println(s"      # neutral  [3]      : $neutralCount")
+        println(s"      # negative [1, 2]   : $negativeCount")
+        println(s"      Avg. rating         : $avgRating")
+        println(s"      # per shop and month: $reviewsPerMonth")
 
         reviewsCount
       }.sum
 
-      println(s"  Reviews: $categoryReviews")
+      println(s"  # total reviews: $categoryReviews")
     }
   }
 }
