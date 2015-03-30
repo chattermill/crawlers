@@ -24,6 +24,5 @@ object Database {
   def loadShops(): Seq[ShopReviews] = {
     import upickle._
     shopFiles.map(file => read[ShopReviews](load(file)))
-      .filter(_.reviews.reviews.size >= Threshold)
   }
 }

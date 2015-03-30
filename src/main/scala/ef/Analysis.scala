@@ -16,50 +16,61 @@ object Analysis {
   def isNeutral (review: Model.Review): Boolean = review.rating == 3
   def isNegative(review: Model.Review): Boolean = review.rating < 3
 
+  def analyse(matchingShops: Seq[Model.ShopReviews]) = {
+    val reviewsCount = matchingShops.map(_.reviews.reviews.size).sum
+
+    val reviewsPerMonth = average(matchingShops.map { shop =>
+      val perMonth = shop.reviews.reviews.groupBy { review =>
+        val dt = LocalDateTime.parse(review.dateTime, formatter)
+        (dt.getYear, dt.getMonth)
+      }
+
+      shop.reviews.reviews.size / perMonth.size
+    }).getOrElse(0)
+
+    val positiveCount = matchingShops.map(_.reviews.reviews.count(isPositive)).sum
+    val neutralCount  = matchingShops.map(_.reviews.reviews.count(isNeutral)).sum
+    val negativeCount = matchingShops.map(_.reviews.reviews.count(isNegative)).sum
+    val avgRating     = average(matchingShops.flatMap(_.reviews.reviews).map(_.rating)).getOrElse(0)
+
+    println(s"    Reviews:")
+    println(s"      # total             : $reviewsCount")
+    println(s"      # positive [4, 5]   : $positiveCount")
+    println(s"      # neutral  [3]      : $neutralCount")
+    println(s"      # negative [1, 2]   : $negativeCount")
+    println(s"      Avg. rating         : $avgRating")
+    println(s"      # per shop and month: $reviewsPerMonth")
+
+    reviewsCount
+  }
+
   def main(args: Array[String]) {
     val categories = Database.loadCategories()
-    val shops      = Database.loadShops()
+    val allShops   = Database.loadShops()
+    val shops      = allShops.filter(_.reviews.reviews.size >= Database.Threshold)
 
-    println(s"Considering ${shops.size} shops (with ${Database.Threshold}+ reviews)")
+    println(s"Considering ${shops.size} shops (out of ${shops.size}, minimum ${Database.Threshold}+ reviews)")
 
     categories.foreach { category =>
       println(s"Category: ${category.category.caption}")
 
-      val categoryReviews = category.subCategories.map { subCategory =>
+      category.subCategories.map { subCategory =>
         val matchingShops = shops.filter { shop =>
           shop.reviews.categories.contains(category.category) ||
           shop.reviews.categories.contains(subCategory)
         }
 
-        val reviewsCount = matchingShops.map(_.reviews.reviews.size).sum
-
-        val reviewsPerMonth = average(matchingShops.map { shop =>
-          val perMonth = shop.reviews.reviews.groupBy { review =>
-            val dt = LocalDateTime.parse(review.dateTime, formatter)
-            (dt.getYear, dt.getMonth)
-          }
-
-          shop.reviews.reviews.size / perMonth.size
-        }).getOrElse(0)
-
-        val positiveCount = matchingShops.map(_.reviews.reviews.count(isPositive)).sum
-        val neutralCount  = matchingShops.map(_.reviews.reviews.count(isNeutral)).sum
-        val negativeCount = matchingShops.map(_.reviews.reviews.count(isNegative)).sum
-        val avgRating     = average(matchingShops.flatMap(_.reviews.reviews).map(_.rating)).getOrElse(0)
-
         println(s"  Sub-category: ${subCategory.caption}")
-        println(s"    Reviews:")
-        println(s"      # total             : $reviewsCount")
-        println(s"      # positive [4, 5]   : $positiveCount")
-        println(s"      # neutral  [3]      : $neutralCount")
-        println(s"      # negative [1, 2]   : $negativeCount")
-        println(s"      Avg. rating         : $avgRating")
-        println(s"      # per shop and month: $reviewsPerMonth")
-
-        reviewsCount
-      }.sum
-
-      println(s"  # total reviews: $categoryReviews")
+        analyse(matchingShops)
+      }
     }
+
+    shops.foreach { shop =>
+      println(s"Shop: ${shop.shop.caption}")
+      analyse(Seq(shop))
+    }
+
+    val totalReviews = shops.map(_.reviews.reviews.size).sum
+    println(s"# total reviews: $totalReviews")
   }
 }
