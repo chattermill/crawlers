@@ -60,6 +60,7 @@ object Crawler {
       .asScala
 
     val current  = results.map(result => Shop(shopName(result.text()), result.absUrl("href")))
+      .filter(_.caption != "K-way") // TODO Workaround to prevent charset issues
     val nextPage = document.select("div.AjaxPagerLinkWrapper").first() != null
 
     if (nextPage) current ++ loadCategory(cat, page + 1)
